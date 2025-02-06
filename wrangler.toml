@@ -21,8 +21,10 @@ enabled = true
 # - https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 # Note: Use secrets to store sensitive data.
 # - https://developers.cloudflare.com/workers/configuration/secrets/
-# [vars]
-# MY_VARIABLE = "production_value"
+ [vars]
+ DOM_API_URL = "https://rcpqhzjebxqnxxpzuimc.supabase.co/functions/v1/dom/extract"
+ DOM_API_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHFoemplYnhxbnh4cHp1aW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI4MjExOTYsImV4cCI6MjAyODM5NzE5Nn0.99F9fl78-DQyuwn73gXJkVVNq_A7QuJRCxWmNFb0Ebs"
+ SCORES_THRESHOLD = "3.4"
 
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
@@ -73,9 +75,15 @@ enabled = true
 
 # Bind a KV Namespace. Use KV as persistent storage for small key-value pairs.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#kv-namespaces
-# [[kv_namespaces]]
-# binding = "MY_KV_NAMESPACE"
-# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+[[kv_namespaces]]
+binding = "KV"
+
+# name = "meshilog" for local testing
+#remote id
+id = "199725cca37c4baeaf658b29a6798853" 
+
+#local id
+#id = "d7c4a17015664025b718d5f90f4c0528"
 
 # Bind an mTLS certificate. Use to present a client certificate when communicating with another service.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#mtls-certificates
