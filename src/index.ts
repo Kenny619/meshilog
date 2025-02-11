@@ -5,6 +5,8 @@ import { getRestaurants } from "./utils/endPoint/getRestaurants";
 import { fixAreaCities } from "./utils/endPoint/fixAreaCities";
 import { debugLocations } from "./utils/debug/debugLocations";
 import { lastUpdated } from "./utils/endPoint/lastUpdated";
+import { getShopDetails } from "./utils/endPoint/getShopDetails";
+import { getCity } from "./utils/endPoint/getCity";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 app.get("/", async (c) => await fixPrefectures(c));
@@ -12,6 +14,7 @@ app.get("/lastUpdated", async (c) => await lastUpdated(c));
 app.get("/areacity", async (c) => await getAreaCities(c));
 app.get("/restaurant", async (c) => await getRestaurants(c));
 app.get("/fixareacity", async (c) => await fixAreaCities(c));
+app.get("/city", async (c) => await getCity(c));
 app.get(
 	"/debug/:mode",
 	async (c) =>
@@ -20,6 +23,7 @@ app.get(
 			c.req.param("mode") as "prefectures" | "cities" | "restaurants",
 		),
 );
+app.get("/shopdetails", async (c) => await getShopDetails(c));
 export default app;
 
 /*
