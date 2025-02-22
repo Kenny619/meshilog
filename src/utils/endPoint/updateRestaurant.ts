@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { getKV, putKV } from "../kv/helper.kv";
 import { scrapeRestaurants } from "../crawler/scrapeRestaurants";
-import type { Prefecture, Areas, City, Restaurant, CityVal } from "../../type";
+import type { Prefecture, Areas, City, Restaurant } from "../../type";
 
 export async function updateRestaurants(c: Context) {
 	const prefectures = (await getKV(c.env, "PREFECTURES")) as Prefecture;
@@ -67,9 +67,11 @@ export async function updateRestaurants(c: Context) {
 
 	//overwrite PREFECTURES KV with updated prefectures obj
 	await putKV(c.env, "PREFECTURES", prefectures);
-	console.log(JSON.stringify(restaurants, null, 2));
+	console.info(
+		`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
+	);
 	return c.json(
-		`successfully updated restaurants in ${target.prefecture}/${target.area}/${target.city}`,
+		`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
 	);
 }
 
