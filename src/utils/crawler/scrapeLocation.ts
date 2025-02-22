@@ -5,7 +5,6 @@ export async function scrapeLocation(url: string): Promise<{
 	urls: string[];
 }> {
 	const response = await fetch(url);
-
 	const names: string[] = [];
 	const urls: string[] = [];
 
@@ -17,14 +16,19 @@ export async function scrapeLocation(url: string): Promise<{
 		})
 		.on(selectors.locationURLs, {
 			element(element) {
-				urls.push(element.getAttribute("href") || "");
+				urls.push(element.getAttribute("href") as string);
 			},
 		})
 		.transform(response)
+
 		.arrayBuffer();
 
-	return {
-		names: names.filter((name) => name !== ""),
-		urls: urls.filter((url) => url !== ""),
-	};
+	const filteredNames = names.filter((name) => name !== "");
+	const filteredUrls = urls.filter((url) => url !== "");
+
+	//clean up non-white spaces (line change observed)
+	const cleanedNames = filteredNames.map((name) => name.replaceAll(/\s+/g, ""));
+	const cleanedUrls = filteredUrls.map((url) => url.replaceAll(/\s+/g, ""));
+
+	return { names: cleanedNames, urls: cleanedUrls };
 }

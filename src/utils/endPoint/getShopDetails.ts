@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import { getKV, putKV } from "../kv/helper.kv";
 // import type { OutputRestaurant } from "../crawler/helper.crawler";
-import { decodeBase64Url } from "hono/utils/encode";
 
 export async function getShopDetails(c: Context) {
 	const restaurants = await getKV(c.env, "restaurants");

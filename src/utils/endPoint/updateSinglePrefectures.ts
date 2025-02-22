@@ -1,55 +1,34 @@
 import type { Context } from "hono";
 import { getKV, putKV } from "../kv/helper.kv";
 import { scrapeLocation } from "../crawler/scrapeLocation";
-
-type Prefecture = {
-	[k: string]: {
-		prefName: string;
-		prefURL: string;
-		areas?: Areas;
-	};
-};
-
-type Areas = {
-	[k: string]: {
-		url: string;
-		cities?: City;
-	};
-};
-
-type City = {
-	[k: string]: {
-		url: string;
-		updated?: number;
-		restaurants?: string[];
-	};
-};
-
-export async function updatePrefectures(c: Context) {
+import type { Prefecture, Areas, City } from "../../type";
+import { findOldest } from "../lib/findOldest";
+export async function updateSinglePrefectures(c: Context) {
+	//retrieve location data from kv
 	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
 	if (!prefs) throw new Error("key:PREFECTURES do not exist.");
 
-	//scrape areas
-	const resAreas = await Promise.all(
-		Object.values(prefs).map((p) => scrapeLocation(p.prefURL)),
-	);
+	//find the oldest prefecture
+	const targetPref = findOldest(prefs);
 
-	const updatedAreas = updateAreas(prefs, resAreas);
+	//update area
+	const prefID = Object.keys(targetPref)[0];
+	const scrapedAreas = await scrapeLocation(targetPref[prefID].prefURL);
+	const prefNewAreas = updateArea(prefs, prefID, scrapedAreas);
 
-	//set city
-	const resCities = await Promise.all(
-		Object.values(updatedAreas).map(async (p) =>
-			Object.values(p.areas as Areas).map((area) => scrapeLocation(area.url)),
+	//update city
+	const scrapedCities = await Promise.all(
+		Object.values(prefNewAreas[prefID].areas as Areas).map((a) =>
+			scrapeLocation(a.url),
 		),
 	);
+	const prefNewCities = updateCity(prefNewAreas, prefID, scrapedCities);
+	prefNewCities[prefID].updated = Date.now();
 
-	const updatedCities = await updateCities(updatedAreas, resCities);
-	//await putKV(c.env, "PREFECTURES", updatedCities);
-	console.log(updatedCities);
+	await putKV(c.env, "PREFECTURES", prefNewCities);
 
-	// console.log("update Success: Prefectures");
-	//return c.json("update Success: Prefectures");
-	return c.json(updatedCities);
+	// return c.json(prefNewCities);
+	return c.json(`update Success: ${prefID}`);
 }
 
 //convert scrape response of {names: string[]; urls:string[]}
@@ -66,41 +45,38 @@ function getLocationObj(response: { names: string[]; urls: string[] }) {
 	);
 }
 
-function updateAreas(
+function updateArea(
 	pref: Prefecture,
-	resAreas: { names: string[]; urls: string[] }[],
+	prefID: string,
+	resArea: { names: string[]; urls: string[] },
 ) {
-	const prefKeys = Object.keys(pref);
-	//use i to track Prefecture key and corresponding resAreas[]
-	for (let i = 0; i < prefKeys.length; i++) {
-		pref[prefKeys[i]].areas = updateLocations(
-			pref[prefKeys[i]].areas as Areas,
-			getLocationObj(resAreas[i]),
-		);
-	}
+	pref[prefID].areas = updateLocations(
+		pref[prefID].areas as Areas,
+		getLocationObj(resArea),
+	);
 
 	return pref;
 }
 
-async function updateCities(
+function updateCity(
 	pref: Prefecture,
-	resCities: Promise<{ names: string[]; urls: string[] }>[][],
+	prefID: string,
+	resCities: { names: string[]; urls: string[] }[],
 ) {
-	const prefKeys = Object.keys(pref);
-	for (let i = 0; i < prefKeys.length; i++) {
-		const p = pref[prefKeys[i]];
-		const areaKeys = Object.keys(p.areas as Areas);
+	const areaKeys = Object.keys(pref[prefID].areas as Areas);
 
-		for (let j = 0; j < areaKeys.length; j++) {
-			const curCities = (p.areas as Areas)[areaKeys[j]].cities as City;
-			const curCityKeys = new Set(Object.keys(curCities));
-			const newCities = await resCities[i][j];
+	if (areaKeys.length !== resCities.length) {
+		throw new Error("areaKeys and resCities length mismatch");
+	}
 
-			(p.areas as Areas)[areaKeys[j]].cities = updateLocations(
-				curCities,
-				getLocationObj(newCities),
-			) as City;
-		}
+	for (let i = 0; i < areaKeys.length; i++) {
+		const curCities = (pref[prefID].areas as Areas)[areaKeys[i]].cities as City;
+		const newCities = resCities[i];
+
+		(pref[prefID].areas as Areas)[areaKeys[i]].cities = updateLocations(
+			curCities,
+			getLocationObj(newCities),
+		) as City;
 	}
 	return pref;
 }

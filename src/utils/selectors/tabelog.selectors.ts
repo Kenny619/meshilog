@@ -1,17 +1,10 @@
-export type SelectorKeys =
-	| "locationURLs"
-	| "locationNames"
-	| "searchResultScore"
-	| "searchResultURL"
-	| "restaurant";
-export type Selector = {
-	[key in SelectorKeys]: string;
-};
-export const selectors: Selector = {
+export const selectors = {
+	locationNewURLs:
+		"div#tabs-panel-balloon-pref-area > div.list-balloon__list > ul > li > a, #js-leftnavi-area-scroll > div > ul > li > a",
 	locationURLs:
-		"#tabs-panel-balloon-pref-area > div > ul a, #js-leftnavi-area-scroll > div > ul > li > a",
+		"div#tabs-panel-balloon-pref-area > div.list-balloon__list > ul > li > a, #js-leftnavi-area-scroll > div > ul > li > a",
 	locationNames:
-		"#tabs-panel-balloon-pref-area > div > ul span:not(.list-balloon__nolink), #js-leftnavi-area-scroll > div > ul > li > a > span:not(.list-balloon__nolink)",
+		"div#tabs-panel-balloon-pref-area > div.list-balloon__list > ul span:not(.list-balloon__nolink), #js-leftnavi-area-scroll > div > ul > li > a > span:not(.list-balloon__nolink)",
 	searchResultScore: "span.list-rst__rating-val",
 	searchResultURL: "a.list-rst__rst-name-target",
 	restaurant: "#list-area-list > ul > li > a",
