@@ -3,9 +3,9 @@ import { getKV, putKV } from "../kv/helper.kv";
 import { scrapeLocation } from "../crawler/scrapeLocation";
 import type { Prefecture, Areas, City } from "../../type";
 import { findOldest } from "../lib/findOldest";
-export async function updateSinglePrefectures(c: Context) {
+export async function updateSinglePrefectures(env: CloudflareBindings) {
 	//retrieve location data from kv
-	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
+	const prefs = (await getKV(env, "PREFECTURES")) as Prefecture;
 	if (!prefs) throw new Error("key:PREFECTURES do not exist.");
 
 	//find the oldest prefecture
@@ -25,11 +25,11 @@ export async function updateSinglePrefectures(c: Context) {
 	const prefNewCities = updateCity(prefNewAreas, prefID, scrapedCities);
 	prefNewCities[prefID].updated = Date.now();
 
-	await putKV(c.env, "PREFECTURES", prefNewCities);
+	await putKV(env, "PREFECTURES", prefNewCities);
 
 	console.log(`[update-prefecture] Success: ${prefID}`);
 	// return c.json(prefNewCities);
-	return c.json(`[update-prefecture] Success: ${prefID}`);
+	// return c.json(`[update-prefecture] Success: ${prefID}`);
 }
 
 //convert scrape response of {names: string[]; urls:string[]}
