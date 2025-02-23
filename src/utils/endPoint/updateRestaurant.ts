@@ -42,7 +42,6 @@ export async function updateRestaurants(c: Context) {
 
 			const restaurantsObj = page.scores
 				.map((score, index) => {
-					console.log(page.urls[index], score);
 					return {
 						id: (page.urls[index].match(/^.*\/(.+?)(?=\/?$)/) as string[])[1],
 						score: Number(score),
