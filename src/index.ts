@@ -18,6 +18,7 @@ app.get(
 );
 //export default app;
 export default {
+	fetch: app.fetch,
 	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
 		switch (event.cron) {
 			case "0/30 * * * *": {
