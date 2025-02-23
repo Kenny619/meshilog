@@ -19,7 +19,6 @@ app.get(
 );
 //export default app;
 export default {
-	fetch: app.fetch,
 	async scheduled(
 		event: ScheduledEvent,
 		env: CloudflareBindings,
@@ -41,5 +40,9 @@ export default {
 				break;
 			}
 		}
+	},
+
+	fetch(request: Request, env: CloudflareBindings, ctx: ExecutionContext) {
+		return app.fetch(request, env, ctx);
 	},
 };
