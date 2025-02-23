@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Env, Hono } from "hono";
 import { updateRestaurants } from "./utils/endPoint/updateRestaurant";
 import { debugLocations } from "./utils/debug/debugLocations";
 import { getShopDetails } from "./utils/endPoint/getShopDetails";
@@ -16,4 +16,16 @@ app.get(
 			c.req.param("mode") as "PREFECTURES" | "cities" | "restaurants",
 		),
 );
-export default app;
+//export default app;
+export default {
+	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+		switch (event.cron) {
+			case "0/30 * * * *":
+				app.get("/prefecture", async (c) => await updateSinglePrefectures(c));
+				break;
+			case "0/3 * * * *":
+				app.get("/restaurant", async (c) => await updateRestaurants(c));
+				break;
+		}
+	},
+};
