@@ -67,7 +67,7 @@ export async function updateRestaurants(c: Context) {
 
 	//overwrite PREFECTURES KV with updated prefectures obj
 	await putKV(c.env, "PREFECTURES", prefectures);
-	console.info(
+	console.log(
 		`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
 	);
 	return c.json(
