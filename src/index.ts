@@ -20,12 +20,20 @@ app.get(
 export default {
 	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
 		switch (event.cron) {
-			case "0/30 * * * *":
-				app.get("/prefecture", async (c) => await updateSinglePrefectures(c));
+			case "0/30 * * * *": {
+				const response = await fetch(
+					"https://meshilog.kenny619.workers.dev/prefecture",
+				);
+				console.log(await response.text());
 				break;
-			case "0/3 * * * *":
-				app.get("/restaurant", async (c) => await updateRestaurants(c));
+			}
+			case "0/3 * * * *": {
+				const response = await fetch(
+					"https://meshilog.kenny619.workers.dev/restaurant",
+				);
+				console.log(await response.text());
 				break;
+			}
 		}
 	},
 };
