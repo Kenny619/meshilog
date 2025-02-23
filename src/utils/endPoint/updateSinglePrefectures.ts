@@ -27,7 +27,7 @@ export async function updateSinglePrefectures(c: Context) {
 
 	await putKV(c.env, "PREFECTURES", prefNewCities);
 
-	console.info(`[update-prefecture] Success: ${prefID}`);
+	console.log(`[update-prefecture] Success: ${prefID}`);
 	// return c.json(prefNewCities);
 	return c.json(`[update-prefecture] Success: ${prefID}`);
 }
