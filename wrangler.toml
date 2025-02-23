@@ -119,3 +119,14 @@ id = "199725cca37c4baeaf658b29a6798853"
 # [[vectorize]]
 # binding = "MY_INDEX"
 # index_name = "my-index"
+
+# trigger
+[triggers]
+# Schedule cron triggers:
+# - At every 3rd minute
+# - At 3PM on first day of the month
+# - At 11:59PM on the last weekday of the month
+crons = [ "0/30 * * * *", "0/3 * * * *" ]
+
+
+

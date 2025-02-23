@@ -7,7 +7,6 @@ export async function updateSinglePrefectures(env: CloudflareBindings) {
 	//retrieve location data from kv
 	const prefs = (await getKV(env, "PREFECTURES")) as Prefecture;
 	if (!prefs) throw new Error("key:PREFECTURES do not exist.");
-
 	//find the oldest prefecture
 	const targetPref = findOldest(prefs);
 
@@ -27,7 +26,7 @@ export async function updateSinglePrefectures(env: CloudflareBindings) {
 
 	await putKV(env, "PREFECTURES", prefNewCities);
 
-	console.log(`[update-prefecture] Success: ${prefID}`);
+	return `[update-prefecture] Success: ${prefID}`;
 	// return c.json(prefNewCities);
 	// return c.json(`[update-prefecture] Success: ${prefID}`);
 }
