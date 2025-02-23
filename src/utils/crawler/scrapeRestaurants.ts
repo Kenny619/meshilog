@@ -37,14 +37,4 @@ export async function scrapeRestaurants(url: string) {
 		scores: cleanedScores,
 		urls: cleanedUrls,
 	};
-	// const restaurantsObj = cleanedScores
-	// 	.map((score, index) => ({
-	// 		id: (cleanedUrls[index].match(/^.*\/(.+?)(?=\/?$)/) as string[])[1],
-	// 		score: Number(score),
-	// 		url: cleanedUrls[index],
-	// 	}))
-	// 	.filter((restaurant) => restaurant.score >= c.env.SCORES_THRESHOLD)
-	// 	.sort((a, b) => b.score - a.score);
-
-	// return restaurantsObj;
 }
