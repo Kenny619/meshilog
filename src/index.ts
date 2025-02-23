@@ -24,17 +24,20 @@ export default {
 		env: CloudflareBindings,
 		ctx: ExecutionContext,
 	) {
+		console.log(event.cron);
 		switch (event.cron) {
-			case "0/30 * * * *": {
+			case "*/30 * * * *": {
 				const delayedProcessing = async () => {
-					await updateSinglePrefectures(env);
+					const res = await updateSinglePrefectures(env);
+					console.log(res);
 				};
 				ctx.waitUntil(delayedProcessing());
 				break;
 			}
-			case "0/3 * * * *": {
+			case "*/1 * * * *": {
 				const delayedProcessing = async () => {
-					await updateRestaurants(env);
+					const res = await updateRestaurants(env);
+					console.log(res);
 				};
 				ctx.waitUntil(delayedProcessing());
 				break;

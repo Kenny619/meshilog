@@ -66,9 +66,8 @@ export async function updateRestaurants(env: CloudflareBindings) {
 
 	//overwrite PREFECTURES KV with updated prefectures obj
 	await putKV(env, "PREFECTURES", prefectures);
-	console.log(
-		`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
-	);
+
+	return `[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`;
 	// return c.json(
 	// 	`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
 	// );
