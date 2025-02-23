@@ -3,8 +3,8 @@ import { getKV, putKV } from "../kv/helper.kv";
 import { scrapeRestaurants } from "../crawler/scrapeRestaurants";
 import type { Prefecture, Areas, City, Restaurant } from "../../type";
 
-export async function updateRestaurants(c: Context) {
-	const prefectures = (await getKV(c.env, "PREFECTURES")) as Prefecture;
+export async function updateRestaurants(env: CloudflareBindings) {
+	const prefectures = (await getKV(env, "PREFECTURES")) as Prefecture;
 	if (!prefectures) throw new Error("key:PREFECTURES do not exist.");
 	//find target city
 	const target = findOldestUpdatedCity(prefectures);
@@ -34,10 +34,10 @@ export async function updateRestaurants(c: Context) {
 			//if resolved promise is null skip the loop
 			if (!page) continue;
 			//set abortScraping to true if any score is above threshold
-			if (page.scores.some((score) => Number(score) < c.env.SCORES_THRESHOLD))
+			if (page.scores.some((score) => Number(score) < env.SCORES_THRESHOLD))
 				abortScraping = true;
 			//exit for loop if all scores are below threshold
-			if (page.scores.every((score) => Number(score) < c.env.SCORES_THRESHOLD))
+			if (page.scores.every((score) => Number(score) < env.SCORES_THRESHOLD))
 				break;
 
 			const restaurantsObj = page.scores
@@ -48,7 +48,7 @@ export async function updateRestaurants(c: Context) {
 						url: page.urls[index],
 					};
 				})
-				.filter((restaurant) => restaurant.score >= c.env.SCORES_THRESHOLD);
+				.filter((restaurant) => restaurant.score >= env.SCORES_THRESHOLD);
 			restaurants.push(...restaurantsObj);
 		}
 		//exit scraping while loop if a joint with score < SCRORES_THRESHOLD is observed
@@ -65,13 +65,13 @@ export async function updateRestaurants(c: Context) {
 	};
 
 	//overwrite PREFECTURES KV with updated prefectures obj
-	await putKV(c.env, "PREFECTURES", prefectures);
+	await putKV(env, "PREFECTURES", prefectures);
 	console.log(
 		`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
 	);
-	return c.json(
-		`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
-	);
+	// return c.json(
+	// 	`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
+	// );
 }
 
 function findOldestUpdatedCity(prefectures: Prefecture) {
