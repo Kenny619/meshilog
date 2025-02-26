@@ -3,9 +3,9 @@ import { getKV, putKV } from "../kv/helper.kv";
 import { scrapeLocation } from "../crawler/scrapeLocation";
 import type { Prefecture, Areas, City } from "../../type";
 import { findOldest } from "../lib/findOldest";
-export async function updateSinglePrefectures(env: CloudflareBindings) {
+export async function debugPrefecture(c: Context) {
 	//retrieve location data from kv
-	const prefs = (await getKV(env, "PREFECTURES")) as Prefecture;
+	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
 	if (!prefs) throw new Error("key:PREFECTURES do not exist.");
 	//find the oldest prefecture
 	const targetPref = findOldest(prefs);
@@ -16,17 +16,29 @@ export async function updateSinglePrefectures(env: CloudflareBindings) {
 	const prefNewAreas = updateArea(prefs, prefID, scrapedAreas);
 
 	//update city
-	const scrapedCities = await Promise.all(
-		Object.values(prefNewAreas[prefID].areas as Areas).map((a) =>
-			scrapeLocation(a.url),
-		),
-	);
+	//handle 5 areas at a time
+	// const scrapedCities = await Promise.all(
+	// 	Object.values(prefNewAreas[prefID].areas as Areas).map((a) =>
+	// 		scrapeLocation(a.url),
+	// 	),
+	// );
+
+	//scraped cities variable
+	const scrapedCities: { names: string[]; urls: string[] }[] = [];
+	const prmsScrapedCities = Object.values(
+		prefNewAreas[prefID].areas as Areas,
+	).map((a) => scrapeLocation(a.url));
+
+	while (prmsScrapedCities.length > 0) {
+		const res = await Promise.all(prmsScrapedCities.splice(0, 10));
+		scrapedCities.push(...res);
+	}
 	const prefNewCities = updateCity(prefNewAreas, prefID, scrapedCities);
 	prefNewCities[prefID].updated = Date.now();
 
-	await putKV(env, "PREFECTURES", prefNewCities);
+	await putKV(c.env, "PREFECTURES", prefNewAreas);
 
-	return `[update-prefecture] Success: ${prefID}`;
+	return c.text(`[update-prefecture] Success: ${prefID}`);
 	// return c.json(prefNewCities);
 	// return c.json(`[update-prefecture] Success: ${prefID}`);
 }

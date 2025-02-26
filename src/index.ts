@@ -3,12 +3,14 @@ import type { Context } from "hono";
 import { updateRestaurants } from "./utils/endPoint/updateRestaurant";
 import { debugLocations } from "./utils/debug/debugLocations";
 import { getShopDetails } from "./utils/endPoint/getShopDetails";
-import { updateSinglePrefectures } from "./utils/endPoint/updateSinglePrefectures";
+import { debugRestaurant } from "./utils/endPoint/debugRestaurant";
+import { debugPrefecture } from "./utils/endPoint/updateSingleArea";
+import { updateSinglePrefecture } from "./utils/endPoint/updateSinglePrefecture";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-// app.get("/prefecture", async (c) => await updateSinglePrefectures(c));
-// app.get("/restaurant", async (c) => await updateRestaurants(c));
 // app.get("/shopdetails", async (c) => await getShopDetails(c));
+app.get("/drestaurant", async (c) => await debugRestaurant(c));
+app.get("/dprefecture", async (c) => await debugPrefecture(c));
 app.get(
 	"/debug/:mode",
 	async (c) =>
@@ -24,11 +26,10 @@ export default {
 		env: CloudflareBindings,
 		ctx: ExecutionContext,
 	) {
-		console.log(event.cron);
 		switch (event.cron) {
 			case "*/30 * * * *": {
 				const delayedProcessing = async () => {
-					const res = await updateSinglePrefectures(env);
+					const res = await updateSinglePrefecture(env);
 					console.log(res);
 				};
 				ctx.waitUntil(delayedProcessing());
