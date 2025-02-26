@@ -1,4 +1,3 @@
-import type { Context } from "hono";
 import { selectors } from "../selectors/tabelog.selectors";
 
 export async function scrapeRestaurants(url: string) {
@@ -8,16 +7,8 @@ export async function scrapeRestaurants(url: string) {
 	const urls: string[] = [];
 
 	await new HTMLRewriter()
-		.on(selectors.searchResultScore, {
-			text({ text }) {
-				scores.push(text);
-			},
-		})
-		.on(selectors.searchResultURL, {
-			element(element) {
-				urls.push(element.getAttribute("href") as string);
-			},
-		})
+		.on(selectors.searchResultScore, new TextHandler(scores))
+		.on(selectors.searchResultURL, new ElementHandler(urls))
 		.transform(response)
 		.arrayBuffer();
 
@@ -37,4 +28,39 @@ export async function scrapeRestaurants(url: string) {
 		scores: cleanedScores,
 		urls: cleanedUrls,
 	};
+}
+
+class TextHandler {
+	scores: string[] = [];
+	str: string;
+
+	constructor(scoreStorage: string[]) {
+		this.scores = scoreStorage;
+		this.str = "";
+	}
+
+	async text(Text: {
+		removed: boolean;
+		text: string;
+		lastInTextNode: boolean;
+	}) {
+		this.str += Text.text;
+		if (Text.lastInTextNode) {
+			if (this.str.length > 0) this.scores.push(this.str);
+			this.str = "";
+		}
+	}
+}
+
+class ElementHandler {
+	urls: string[] = [];
+
+	constructor(urlStorage: string[]) {
+		this.urls = urlStorage;
+	}
+
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	async element(Element: any) {
+		this.urls.push((await Element.getAttribute("href")) as string);
+	}
 }
