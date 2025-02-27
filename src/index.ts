@@ -32,7 +32,7 @@ export default {
 		ctx: ExecutionContext,
 	) {
 		switch (event.cron) {
-			case "*/5 * * * *": {
+			case "*/30 * * * *": {
 				const delayedProcessing = async () => {
 					const res = await updateSinglePrefecture(env);
 					console.log(res);
