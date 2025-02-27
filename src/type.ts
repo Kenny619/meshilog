@@ -27,10 +27,5 @@ export type Restaurant = {
 	id: string;
 	score: number;
 	url: string;
-}[];
-
-export type CityVal = {
-	url: string;
 	updated?: number;
-	restaurants?: Restaurant;
-};
+}[];

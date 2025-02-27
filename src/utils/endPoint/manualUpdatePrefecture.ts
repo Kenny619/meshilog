@@ -3,44 +3,59 @@ import { getKV, putKV } from "../kv/helper.kv";
 import { scrapeLocation } from "../crawler/scrapeLocation";
 import type { Prefecture, Areas, City } from "../../type";
 import { findOldest } from "../lib/findOldest";
-export async function debugPrefecture(c: Context) {
-	//retrieve location data from kv
-	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
-	if (!prefs) throw new Error("key:PREFECTURES do not exist.");
-	//find the oldest prefecture
-	const targetPref = findOldest(prefs);
+export async function manualUpdatePrefecture(c: Context) {
+	const errMsgPrefix = "manualUpdatePrefecture failed. ";
+
+	//get PREFECTURES from KV
+	let prefs: Prefecture = {};
+	try {
+		prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
+	}
+
+	//if prefID was passed as a parameter e.g. /man/prefecture/tokyo
+	//set passed parameter to prefID
+	//otherwise find the oldest updated prefecture from KV
+	let prefID = "";
+	if (c.req.param("prefID")) {
+		prefID = c.req.param("prefID");
+	} else {
+		const targetPref = findOldest(prefs);
+		prefID = Object.keys(targetPref)[0];
+	}
 
 	//update area
-	const prefID = Object.keys(targetPref)[0];
-	const scrapedAreas = await scrapeLocation(targetPref[prefID].prefURL);
-	const prefNewAreas = updateArea(prefs, prefID, scrapedAreas);
-
-	//update city
-	//handle 5 areas at a time
-	// const scrapedCities = await Promise.all(
-	// 	Object.values(prefNewAreas[prefID].areas as Areas).map((a) =>
-	// 		scrapeLocation(a.url),
-	// 	),
-	// );
+	let prefUpdatedAreas: Prefecture = {};
+	try {
+		const scrapedAreas = await scrapeLocation(prefs[prefID].prefURL);
+		prefUpdatedAreas = updateArea(prefs, prefID, scrapedAreas);
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
+	}
 
 	//scraped cities variable
-	const scrapedCities: { names: string[]; urls: string[] }[] = [];
-	const prmsScrapedCities = Object.values(
-		prefNewAreas[prefID].areas as Areas,
-	).map((a) => scrapeLocation(a.url));
-
-	while (prmsScrapedCities.length > 0) {
-		const res = await Promise.all(prmsScrapedCities.splice(0, 10));
-		scrapedCities.push(...res);
+	let prefUpdatedCities: Prefecture = {};
+	try {
+		const res = await Promise.all(
+			Object.values(prefUpdatedAreas[prefID].areas as Areas).map((a) =>
+				scrapeLocation(a.url),
+			),
+		);
+		prefUpdatedCities = updateCity(prefUpdatedAreas, prefID, res);
+		prefUpdatedCities[prefID].updated = Date.now();
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
 	}
-	const prefNewCities = updateCity(prefNewAreas, prefID, scrapedCities);
-	prefNewCities[prefID].updated = Date.now();
 
-	await putKV(c.env, "PREFECTURES", prefNewAreas);
+	//overwrite PREFECTURES KV with updated prefectures obj
+	try {
+		await putKV(c.env, "PREFECTURES", prefUpdatedCities);
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
+	}
 
 	return c.text(`[update-prefecture] Success: ${prefID}`);
-	// return c.json(prefNewCities);
-	// return c.json(`[update-prefecture] Success: ${prefID}`);
 }
 
 //convert scrape response of {names: string[]; urls:string[]}
@@ -109,6 +124,7 @@ function updateLocations<T extends Areas | City>(
 		//delete area keys that were not found in newAreas
 		if (onlyInCurKeys.length > 0) {
 			for (const delKey of onlyInCurKeys) {
+				console.log("delete from cur:", delKey);
 				delete current[delKey];
 			}
 		}
@@ -116,20 +132,16 @@ function updateLocations<T extends Areas | City>(
 		//add areas which were not found in curAreas
 		if (onlyInNewKeys.length > 0) {
 			for (const addKey of onlyInNewKeys) {
+				console.log("added to cur:", addKey);
 				current[addKey] = res[addKey];
 			}
 		}
 	}
 
 	//check for changed URLs.  If changed, update curAreas
-	for (const key of curKeys) {
-		if (!Object.hasOwn(current, key)) {
-			console.log("current:", current, "key:", key);
-		}
-		if (!Object.hasOwn(res, key)) {
-			console.log("res:", res, "key:", key);
-		}
-		if (current[key as keyof T as string].url !== res[key].url) {
+	for (const key of newKeys) {
+		if (res[key].url !== current[key as keyof T as string].url) {
+			console.log("update cur URL:", key);
 			current[key as keyof T as string].url = res[key].url;
 		}
 	}

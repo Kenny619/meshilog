@@ -28,7 +28,7 @@ export async function updateRestaurants(env: CloudflareBindings) {
 	//scraper
 	while (urls.length > 0) {
 		///// 10 urls at a time
-		const prms = urls.splice(0, 5).map((url) => scrapeRestaurants(url));
+		const prms = urls.splice(0, 5).map((url) => scrapeRestaurants(url, env));
 		const result = await Promise.all(prms);
 		for (const page of result) {
 			//if resolved promise is null skip the loop

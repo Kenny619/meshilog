@@ -1,4 +1,4 @@
-import type { Prefecture, Areas, City } from "../../type";
+import type { Prefecture, Restaurant } from "../../type";
 
 export function findOldest(location: Prefecture) {
 	//find prefecture with no updated value
@@ -19,4 +19,49 @@ export function findOldest(location: Prefecture) {
 	return {
 		[oldestpref]: location[oldestpref],
 	};
+}
+
+export function findOldestUpdatedRestaurant(location: Prefecture) {
+	//find Restaurant object with smallest updated value and return its parent prefID, areaID, cityID
+	const result = {
+		prefecture: "",
+		area: "",
+		city: "",
+		restaurant: {} as Restaurant[number],
+	};
+
+	for (const [prefID, prefData] of Object.entries(location)) {
+		for (const [areaID, areaData] of Object.entries(prefData.areas || {})) {
+			for (const [cityID, cityData] of Object.entries(areaData.cities || {})) {
+				for (const restaurant of cityData.restaurants || []) {
+					if (restaurant.updated === undefined) {
+						return {
+							prefecture: prefID,
+							area: areaID,
+							city: cityID,
+							restaurant: restaurant,
+						};
+					}
+					if (result.restaurant === null) {
+						result.prefecture = prefID;
+						result.area = areaID;
+						result.city = cityID;
+						result.restaurant = restaurant;
+					}
+					if (
+						result.restaurant !== null &&
+						Object.hasOwn(result.restaurant, "updated") &&
+						restaurant.updated < (result.restaurant.updated as number)
+					) {
+						result.prefecture = prefID;
+						result.area = areaID;
+						result.city = cityID;
+						result.restaurant = restaurant;
+					}
+				}
+			}
+		}
+	}
+
+	return result;
 }
