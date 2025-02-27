@@ -1,16 +1,21 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { updateRestaurants } from "./utils/endPoint/updateRestaurant";
-import { debugLocations } from "./utils/debug/debugLocations";
 import { getShopDetails } from "./utils/endPoint/getShopDetails";
-import { debugRestaurant } from "./utils/endPoint/debugRestaurant";
-import { debugPrefecture } from "./utils/endPoint/updateSingleArea";
 import { updateSinglePrefecture } from "./utils/endPoint/updateSinglePrefecture";
+import { manualUpdatePrefecture } from "./utils/endPoint/manualUpdatePrefecture";
+import { manualUpdateRestaurant } from "./utils/endPoint/manualUpdateRestaurant";
+import { debugLocations } from "./utils/debug/debugLocations";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-// app.get("/shopdetails", async (c) => await getShopDetails(c));
-app.get("/drestaurant", async (c) => await debugRestaurant(c));
-app.get("/dprefecture", async (c) => await debugPrefecture(c));
+app.get("/shopdetails", async (c) => await getShopDetails(c));
+app.get("/man/restaurant", async (c) => await manualUpdateRestaurant(c));
+app.get("/man/prefecture", async (c) => await manualUpdatePrefecture(c));
+
+app.get(
+	"/man/prefecture/:prefID",
+	async (c) => await manualUpdatePrefecture(c),
+);
 app.get(
 	"/debug/:mode",
 	async (c) =>
@@ -27,7 +32,7 @@ export default {
 		ctx: ExecutionContext,
 	) {
 		switch (event.cron) {
-			case "*/30 * * * *": {
+			case "*/5 * * * *": {
 				const delayedProcessing = async () => {
 					const res = await updateSinglePrefecture(env);
 					console.log(res);

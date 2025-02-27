@@ -1,16 +1,33 @@
+import type { Context } from "hono";
 import { selectors } from "../selectors/tabelog.selectors";
 
-export async function scrapeRestaurants(url: string) {
-	const response = await fetch(url);
+export async function scrapeRestaurants(url: string, env: CloudflareBindings) {
+	let response: Response | null = null;
+	try {
+		response = await fetch(url, {
+			headers: {
+				"User-Agent":
+					"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+				cache: "no-store",
+			},
+		});
+	} catch (e) {
+		throw new Error(`fetch failed.  URL:${url} ${e}`);
+	}
+	if (!response) throw new Error(`fetch failed.  URL:${url}`);
 
 	const scores: string[] = [];
 	const urls: string[] = [];
 
-	await new HTMLRewriter()
-		.on(selectors.searchResultScore, new TextHandler(scores))
-		.on(selectors.searchResultURL, new ElementHandler(urls))
-		.transform(response)
-		.arrayBuffer();
+	try {
+		await new HTMLRewriter()
+			.on(selectors.searchResultScore, new TextHandler(scores))
+			.on(selectors.searchResultURL, new ElementHandler(urls))
+			.transform(response)
+			.arrayBuffer();
+	} catch (e) {
+		throw new Error(`scrapeRestaurants failed. ${e}`);
+	}
 
 	//clean up non-white spaces (line change observed)
 	const cleanedScores = scores
@@ -21,6 +38,12 @@ export async function scrapeRestaurants(url: string) {
 		.filter((url) => url.length > 0);
 
 	if (cleanedScores.length === 0 || cleanedUrls.length === 0) {
+		return null;
+	}
+
+	//if all scores are below threshold, return null
+	// console.log("cleanedScores", cleanedScores);
+	if (cleanedScores.every((s) => Number(s) < env.SCORES_THRESHOLD)) {
 		return null;
 	}
 

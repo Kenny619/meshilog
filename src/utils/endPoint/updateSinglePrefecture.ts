@@ -1,31 +1,50 @@
-import type { Context } from "hono";
 import { getKV, putKV } from "../kv/helper.kv";
 import { scrapeLocation } from "../crawler/scrapeLocation";
 import type { Prefecture, Areas, City } from "../../type";
 import { findOldest } from "../lib/findOldest";
 export async function updateSinglePrefecture(env: CloudflareBindings) {
-	//retrieve location data from kv
-	const prefs = (await getKV(env, "PREFECTURES")) as Prefecture;
-	if (!prefs) throw new Error("key:PREFECTURES do not exist.");
-	//find the oldest prefecture
+	const errMsgPrefix = "updateSinglePrefecture failed. ";
+	//get PREFECTURES from KV
+	let prefs: Prefecture = {};
+	try {
+		prefs = (await getKV(env, "PREFECTURES")) as Prefecture;
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
+	}
+
+	//find the oldest updated prefecture from KV
 	const targetPref = findOldest(prefs);
+	const prefID = Object.keys(targetPref)[0];
 
 	//update area
-	const prefID = Object.keys(targetPref)[0];
-	const scrapedAreas = await scrapeLocation(targetPref[prefID].prefURL);
-	const prefNewAreas = updateArea(prefs, prefID, scrapedAreas);
+	let prefUpdatedAreas: Prefecture = {};
+	try {
+		const scrapedAreas = await scrapeLocation(prefs[prefID].prefURL);
+		prefUpdatedAreas = updateArea(prefs, prefID, scrapedAreas);
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
+	}
 
 	//scraped cities variable
-	const scrapedCities: { names: string[]; urls: string[] }[] = [];
-	const prmsScrapedCities = Object.values(
-		prefNewAreas[prefID].areas as Areas,
-	).map((a) => scrapeLocation(a.url));
+	let prefUpdatedCities: Prefecture = {};
+	try {
+		const res = await Promise.all(
+			Object.values(prefUpdatedAreas[prefID].areas as Areas).map((a) =>
+				scrapeLocation(a.url),
+			),
+		);
+		prefUpdatedCities = updateCity(prefUpdatedAreas, prefID, res);
+		prefUpdatedCities[prefID].updated = Date.now();
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
+	}
 
-	const res = await Promise.all(prmsScrapedCities);
-	const prefNewCities = updateCity(prefNewAreas, prefID, res);
-	prefNewCities[prefID].updated = Date.now();
-
-	await putKV(env, "PREFECTURES", prefNewAreas);
+	//overwrite PREFECTURES KV with updated prefectures obj
+	try {
+		await putKV(env, "PREFECTURES", prefUpdatedCities);
+	} catch (e) {
+		throw new Error(`${errMsgPrefix} ${e}`);
+	}
 
 	return `[update-prefecture] Success: ${prefID}`;
 }

@@ -1,17 +1,19 @@
 import type { Context } from "hono";
+import type { Prefecture, Restaurant } from "../../type";
 import { getKV, putKV } from "../kv/helper.kv";
+import { findOldestUpdatedRestaurant } from "../lib/findOldest";
 // import type { OutputRestaurant } from "../crawler/helper.crawler";
 
 export async function getShopDetails(c: Context) {
-	const restaurants = await getKV(c.env, "restaurants");
-	if (!restaurants) throw new Error("key:restaurants do not exist.");
+	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
+	if (!prefs) throw new Error("key:restaurants do not exist.");
 
-	//get pref with lowest time value = oldest update time
-	const targetRestaurant = lastUpdatedRestaurant(restaurants);
-	if (!targetRestaurant) throw new Error("invalid targetRestaurants");
+	//get restaurant with the smallest updated time value or no updated value
+	const target = findOldestUpdatedRestaurant(prefs);
+	if (!target) throw new Error("invalid targetRestaurants");
 
 	// const restaurantURL = targetRestaurant.restaurants.url;
-	const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1060249/";
+	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1060249/";
 	// const restaurantURL = "https://tabelog.com/tokyo/A1304/A130401/13146954/";
 	// const restaurantURL = "https://tabelog.com/tokyo/A1301/A130103/13200392/";
 	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1004335/";
@@ -19,96 +21,99 @@ export async function getShopDetails(c: Context) {
 
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const metaData: Record<string, any> = {};
-	const id = restaurantURL.match(/([^\/]+)(?=\/?$)/)?.[0];
-	metaData.url = restaurantURL;
+	metaData.id = target.restaurant.id;
+	metaData.url = target.restaurant.url;
 
-	const res: string[] = Array(17).fill("");
-	let gmapText = "";
-	const response = await fetch(restaurantURL);
+	// const res: string[] = Array(18).fill("");
+	const res: string[] = Array(18).fill("");
+	let warning = "";
+	const gmapText: string[] = [];
+	const response = await fetch(target.restaurant.url);
 	if (!response.ok) throw new Error(response.statusText);
 
-	await new HTMLRewriter()
-		.on("img.rstinfo-table__map-image", {
-			element(element) {
-				gmapText += element.getAttribute("data-original") as string;
+	const rewriter = new HTMLRewriter()
+		.on("img.rstinfo-table__map-image", new ElementHandler(gmapText))
+		.on("a.rst-status-badge-red__text", {
+			text({ text }) {
+				warning = text;
 			},
 		})
-		.on(tSelector(1), {
+		.on(tSelector(2, 1), {
 			text({ text }) {
 				res[0] += text;
 			},
 		})
-		.on(tSelector(2), {
+		.on(tSelector(2, 2), {
 			text({ text }) {
 				res[1] += text;
 			},
 		})
-		.on(tSelector(3), {
+		.on(tSelector(2, 3), {
 			text({ text }) {
 				res[2] += text;
 			},
 		})
-		.on(tSelector(4), {
+		.on(tSelector(2, 4), {
 			text({ text }) {
 				res[3] += text;
 			},
 		})
-		.on(tSelector(5), {
+		.on(tSelector(2, 5), {
 			text({ text }) {
 				res[4] += text;
 			},
 		})
-		.on(tSelector(6), {
+		.on(tSelector(2, 6), {
 			text({ text }) {
 				res[5] += text;
 			},
 		})
-		.on(tSelector(7), {
+		.on(tSelector(2, 7), {
 			text({ text }) {
 				res[6] += text;
 			},
 		})
-		.on(tSelector(8), {
+		.on(tSelector(2, 8), {
 			text({ text }) {
 				res[7] += text;
 			},
 		})
-		.on(tSelector(9), {
+		.on(tSelector(2, 9), {
 			text({ text }) {
 				res[8] += text;
 			},
 		})
-		.on(tSelector(10), {
+		.on(tSelector(2, 10), {
 			text({ text }) {
 				res[9] += text;
 			},
 		})
-		.on(tSelector(11), {
+		.on(tSelector(2, 11), {
 			text({ text }) {
 				res[10] += text;
 			},
 		})
-		.on(uSelector(1), {
+		.on(tSelector(4, 1), {
 			text({ text }) {
 				res[11] += text;
 			},
 		})
-		.on(uSelector(2), {
+		.on(tSelector(4, 2), {
 			text({ text }) {
 				res[12] += text;
 			},
 		})
-		.on(uSelector(3), {
+		.on(tSelector(4, 3), {
 			text({ text }) {
 				res[13] += text;
 			},
 		})
-		.on(uSelector(4), {
+		.on(tSelector(4, 4), {
 			text({ text }) {
 				res[14] += text;
 			},
 		})
-		.on(uSelector(5), {
+		.on(tSelector(4, 5), {
 			text({ text }) {
 				res[15] += text;
 			},
@@ -125,65 +130,50 @@ export async function getShopDetails(c: Context) {
 			text({ text }) {
 				res[17] += text;
 			},
-		})
-		.transform(response)
-		.arrayBuffer();
+		});
+
+	await rewriter.transform(response).arrayBuffer();
+	metaData.warning = warning ? warning : null;
 
 	for (const str of res) {
 		extractor(str, metaData);
 	}
-	const gmap: Record<string, string> = {};
-	const gt = decodeURIComponent(gmapText).replace(/&amp;/g, "&");
-	const urlParams = new URLSearchParams(new URL(gt).search);
-	const coord = urlParams.get("center");
-	if (coord) metaData.coord = coord.split(",");
+
+	metaData.coord = getCoordinates(gmapText[0]);
 	console.log(JSON.stringify(metaData, null, 2));
-	return c.json({ [id as string]: metaData });
+
+	//update restaurant update time
+	for (const restaurant of prefs[target.prefecture].areas?.[target.area]
+		.cities?.[target.city].restaurants || []) {
+		if (restaurant.id === target.restaurant.id) {
+			restaurant.updated = Date.now();
+		}
+	}
+	await putKV(c.env, "PREFECTURES", prefs);
+
+	const restaurants = await getKV(c.env, "restaurants");
+	await putKV(c.env, "restaurants", restaurants);
+	return c.json(metaData);
 
 	// await putKV(c.env, "restaurants", updatedRestaurants);
 	// return c.json(updatedRestaurants);
 }
-
-function tSelector(row: number) {
-	return `#rst-data-head > table:nth-child(2) > tbody > tr:nth-child(${row.toString()})`;
-}
-function uSelector(row: number) {
-	return `#rst-data-head > table:nth-child(4) > tbody > tr:nth-child(${row.toString()})`;
-}
-function lastUpdatedRestaurant(restaurants: OutputRestaurant[]) {
-	const undefinedTime = restaurants.find((city) =>
-		city.restaurants.find((r) => r.time === undefined),
-	);
-	if (undefinedTime) {
-		return {
-			...undefinedTime,
-			restaurants: undefinedTime.restaurants.find(
-				(r) => r.time === undefined,
-			) as { score: string; url: string },
-		};
+function getCoordinates(gmapText: string) {
+	const gt = decodeURIComponent(gmapText).replace(/&amp;/g, "&");
+	const urlParams = new URLSearchParams(new URL(gt).search);
+	const coordStr = urlParams.get("center");
+	if (coordStr) {
+		const coords = coordStr.split(",");
+		return { lat: coords[0], lng: coords[1] };
 	}
-
-	const lastUpdatedTime = Math.min(
-		...restaurants
-			.flatMap((r) => r.restaurants)
-			.map((v) => Number.parseInt(v.time as string)),
-	);
-
-	for (const city of restaurants) {
-		for (const restaurant of city.restaurants) {
-			if (lastUpdatedTime === Number.parseInt(restaurant.time as string)) {
-				return {
-					...city,
-					restaurants: {
-						score: restaurant.score,
-						url: restaurant.url,
-					},
-				};
-			}
-		}
-	}
+	return { lat: null, lng: null };
 }
-
+function tSelector(tableNum: number, row: number) {
+	return `#rst-data-head > table:nth-child(${tableNum.toString()}) > tbody > tr:nth-child(${row.toString()})`;
+}
+// function uSelector(row: number) {
+// 	return `#rst-data-head > table:nth-child(4) > tbody > tr:nth-child(${row.toString()})`;
+// }
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 function extractor(text: string, metaData: Record<string, any>) {
 	const trimmedText = text.replace(/[\n\r\t]/g, "").replace(/\s+/g, " ");
@@ -446,4 +436,17 @@ function getBudget(text: string) {
 		}
 	}
 	return budget;
+}
+
+class ElementHandler {
+	storage: string[];
+
+	constructor(storage: string[]) {
+		this.storage = storage;
+	}
+
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	async element(Element: any) {
+		this.storage.push((await Element.getAttribute("data-original")) as string);
+	}
 }

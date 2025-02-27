@@ -126,7 +126,7 @@ id = "199725cca37c4baeaf658b29a6798853"
 # - At every 3rd minute
 # - At 3PM on first day of the month
 # - At 11:59PM on the last weekday of the month
-crons = [ "*/30 * * * *", "*/1 * * * *" ]
+crons = [ "*/5 * * * *", "*/1 * * * *" ]
 
 
 
