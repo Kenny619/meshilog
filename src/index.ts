@@ -4,7 +4,7 @@ import { updateRestaurants } from "./utils/endPoint/updateRestaurant";
 import { getShopDetails } from "./utils/endPoint/getShopDetails";
 import { updateSinglePrefecture } from "./utils/endPoint/updateSinglePrefecture";
 import { manualUpdatePrefecture } from "./utils/endPoint/manualUpdatePrefecture";
-import { manualUpdateRestaurant } from "./utils/endPoint/manualUpdateRestaurant";
+import { manualUpdateRestaurant } from "./utils/endPoint/  ";
 import { debugLocations } from "./utils/debug/debugLocations";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 

@@ -29,3 +29,8 @@ export type Restaurant = {
 	url: string;
 	updated?: number;
 }[];
+
+export type Shops = {
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	[k: string]: any;
+};
