@@ -4,7 +4,7 @@ import { getKV, putKV } from "../kv/helper.kv";
 import { findOldestUpdatedRestaurant } from "../lib/findOldest";
 // import type { OutputRestaurant } from "../crawler/helper.crawler";
 
-export async function getShopDetails(c: Context) {
+export async function manualUpdateShops(c: Context) {
 	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
 	if (!prefs) throw new Error("key:restaurants do not exist.");
 

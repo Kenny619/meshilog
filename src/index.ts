@@ -1,14 +1,15 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
+import { updateShops } from "./utils/endPoint/updateShopDetails";
 import { updateRestaurants } from "./utils/endPoint/updateRestaurant";
-import { getShopDetails } from "./utils/endPoint/getShopDetails";
 import { updateSinglePrefecture } from "./utils/endPoint/updateSinglePrefecture";
 import { manualUpdatePrefecture } from "./utils/endPoint/manualUpdatePrefecture";
-import { manualUpdateRestaurant } from "./utils/endPoint/  ";
+import { manualUpdateRestaurant } from "./utils/endPoint/manualUpdateRestaurant";
+import { manualUpdateShops } from "./utils/endPoint/manualShopDetails";
 import { debugLocations } from "./utils/debug/debugLocations";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-app.get("/shopdetails", async (c) => await getShopDetails(c));
+app.get("/shopdetails", async (c) => await manualUpdateShops(c));
 app.get("/man/restaurant", async (c) => await manualUpdateRestaurant(c));
 app.get("/man/prefecture", async (c) => await manualUpdatePrefecture(c));
 
@@ -32,7 +33,7 @@ export default {
 		ctx: ExecutionContext,
 	) {
 		switch (event.cron) {
-			case "*/30 * * * *": {
+			case "* */3 * * * *": {
 				const delayedProcessing = async () => {
 					const res = await updateSinglePrefecture(env);
 					console.log(res);
@@ -40,9 +41,17 @@ export default {
 				ctx.waitUntil(delayedProcessing());
 				break;
 			}
-			case "*/1 * * * *": {
+			case "*/5 * * * *": {
 				const delayedProcessing = async () => {
 					const res = await updateRestaurants(env);
+					console.log(res);
+				};
+				ctx.waitUntil(delayedProcessing());
+				break;
+			}
+			case "*/1 * * * *": {
+				const delayedProcessing = async () => {
+					const res = await updateShops(env);
 					console.log(res);
 				};
 				ctx.waitUntil(delayedProcessing());
