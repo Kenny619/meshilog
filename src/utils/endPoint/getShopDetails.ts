@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import type { Prefecture, Restaurant } from "../../type";
+import type { Prefecture, Restaurant, Shops } from "../../type";
 import { getKV, putKV } from "../kv/helper.kv";
 import { findOldestUpdatedRestaurant } from "../lib/findOldest";
 // import type { OutputRestaurant } from "../crawler/helper.crawler";
@@ -21,7 +21,6 @@ export async function getShopDetails(c: Context) {
 
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const metaData: Record<string, any> = {};
-	metaData.id = target.restaurant.id;
 	metaData.url = target.restaurant.url;
 
 	// const res: string[] = Array(18).fill("");
@@ -151,12 +150,14 @@ export async function getShopDetails(c: Context) {
 	}
 	await putKV(c.env, "PREFECTURES", prefs);
 
-	const restaurants = await getKV(c.env, "restaurants");
-	await putKV(c.env, "restaurants", restaurants);
-	return c.json(metaData);
+	metaData.id = target.restaurant.id;
 
-	// await putKV(c.env, "restaurants", updatedRestaurants);
-	// return c.json(updatedRestaurants);
+	const curShops = (await getKV(c.env, "SHOPS")) as Shops;
+	curShops[target.restaurant.id] = metaData;
+	await putKV(c.env, "SHOPS", curShops);
+	return c.text(
+		`[get-shopDetail] Success: ${target.prefecture}/${target.area}/${target.city} ${target.restaurant.id}`,
+	);
 }
 function getCoordinates(gmapText: string) {
 	const gt = decodeURIComponent(gmapText).replace(/&amp;/g, "&");
