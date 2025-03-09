@@ -1,18 +1,21 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { updateShops } from "./utils/endPoint/updateShopDetails";
-import { updateRestaurants } from "./utils/endPoint/updateRestaurant";
-import { updateSinglePrefecture } from "./utils/endPoint/updateSinglePrefecture";
-import { manualUpdatePrefecture } from "./utils/endPoint/manualUpdatePrefecture";
-import { manualUpdateRestaurant } from "./utils/endPoint/manualUpdateRestaurant";
-import { manualUpdateShops } from "./utils/endPoint/manualShopDetails";
+import { updateShops } from "./crawlers/updateShopDetails";
+import { updateRestaurants } from "./crawlers/updateRestaurant";
+import { updateSinglePrefecture } from "./crawlers/updateSinglePrefecture";
+import { manualUpdatePrefecture } from "./crawlers/manualUpdatePrefecture";
+import { manualUpdateRestaurant } from "./crawlers/manualUpdateRestaurant";
 import { debugLocations } from "./utils/debug/debugLocations";
+import { manualUpdateShops } from "./crawlers/manualShopDetails";
+
+import { test } from "./test/test";
+
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-app.get("/shopdetails", async (c) => await manualUpdateShops(c));
+app.get("/test", async (c) => await test(c));
+app.get("/man/shopdetails", async (c) => await manualUpdateShops(c));
 app.get("/man/restaurant", async (c) => await manualUpdateRestaurant(c));
 app.get("/man/prefecture", async (c) => await manualUpdatePrefecture(c));
-
 app.get(
 	"/man/prefecture/:prefID",
 	async (c) => await manualUpdatePrefecture(c),
@@ -22,7 +25,7 @@ app.get(
 	async (c) =>
 		await debugLocations(
 			c,
-			c.req.param("mode") as "PREFECTURES" | "cities" | "restaurants",
+			c.req.param("mode") as "PREFECTURES" | "cities" | "restaurants" | "SHOPS",
 		),
 );
 //export default app;

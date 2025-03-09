@@ -1,6 +1,6 @@
 import type { Context } from "hono";
-import { getKV, putKV } from "../kv/helper.kv";
-import { scrapeLocation } from "../crawler/scrapeLocation";
+import { getKV, putKV } from "../utils/kv/helper.kv";
+import { scrapeLocation } from "../utils/crawler/scrapeLocation";
 
 type Prefecture = {
 	[k: string]: {

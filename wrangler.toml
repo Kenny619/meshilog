@@ -25,6 +25,7 @@ enabled = true
  DOM_API_URL = "https://rcpqhzjebxqnxxpzuimc.supabase.co/functions/v1/dom/extract"
  DOM_API_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcHFoemplYnhxbnh4cHp1aW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI4MjExOTYsImV4cCI6MjAyODM5NzE5Nn0.99F9fl78-DQyuwn73gXJkVVNq_A7QuJRCxWmNFb0Ebs"
  SCORES_THRESHOLD = "3.4"
+ DISTANCE_LIMIT = 500
 
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
@@ -126,7 +127,7 @@ id = "199725cca37c4baeaf658b29a6798853"
 # - At every 3rd minute
 # - At 3PM on first day of the month
 # - At 11:59PM on the last weekday of the month
-crons = [ "*/30 * * * *", "*/1 * * * *" ]
+crons = [ "* */3 * * * ", "*/5 * * * *", "*/1 * * * *" ]
 
 
 

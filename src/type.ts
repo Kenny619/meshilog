@@ -34,3 +34,13 @@ export type Shops = {
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	[k: string]: any;
 };
+
+export type Stations = {
+	id: string;
+	name: string;
+	line: string;
+	company: string;
+	pref: string;
+	lon: string;
+	lat: string;
+}[];

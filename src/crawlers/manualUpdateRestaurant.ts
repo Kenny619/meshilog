@@ -1,73 +1,91 @@
 import type { Context } from "hono";
-import { getKV, putKV } from "../kv/helper.kv";
-import { scrapeRestaurants } from "../crawler/scrapeRestaurants";
-import type { Prefecture, Areas, City, Restaurant } from "../../type";
+import { getKV, putKV } from "../utils/kv/helper.kv";
+import { scrapeRestaurants } from "../utils/crawler/scrapeRestaurants";
+import type { Prefecture, Areas, City, Restaurant } from "../type";
 
-export async function updateRestaurants(env: CloudflareBindings) {
-	const prefectures = (await getKV(env, "PREFECTURES")) as Prefecture;
-	if (!prefectures) throw new Error("key:PREFECTURES do not exist.");
+export async function manualUpdateRestaurant(c: Context) {
+	const errMsgPrefix = "manualUpdateRestaurant failed.";
+
+	//get PREFECTURES
+	let prefectures: Prefecture | null = null;
+	try {
+		prefectures = (await getKV(c.env, "PREFECTURES")) as Prefecture;
+	} catch (e) {
+		throw new Error(`${errMsgPrefix}. key:PREFECTURES do not exist.`);
+	}
+
 	//find target city
 	const target = findOldestUpdatedCity(prefectures);
-	const city = (
+	const targetCity = (
 		(prefectures[target.prefecture].areas as Areas)[target.area].cities as City
 	)[target.city];
-	if (!city) throw new Error("key:PREFECTURES do not exist.");
-	const url = city.url;
 
-	// end result variable
-	const restaurants: Restaurant = [];
+	if (!targetCity) throw new Error(`${errMsgPrefix}. target: ${target}`);
+
+	const url = targetCity.url;
+	if (!url)
+		throw new Error(
+			`${errMsgPrefix}. target: ${target}. targetCity: ${targetCity}`,
+		);
+
 	//create restaurant listing page urls
 	const urls = [];
 	for (let p = 1; p <= 60; p++) {
 		urls.push(`${url}/rstLst/${p}/?Srt=D&SrtT=rt&sort_mode=1`);
 	}
 
-	//exit scraping while loop flag
-	let abortScraping = false;
-
-	//scraper
-	while (urls.length > 0) {
-		///// 10 urls at a time
-		const prms = urls.splice(0, 5).map((url) => scrapeRestaurants(url, env));
-		const result = await Promise.all(prms);
-		for (const page of result) {
-			//if resolved promise is null skip the loop
-			if (!page) continue;
-			//set abortScraping to true if any score is above threshold
-			if (page.scores.some((score) => Number(score) < env.SCORES_THRESHOLD))
-				abortScraping = true;
-			//exit for loop if all scores are below threshold
-			if (page.scores.every((score) => Number(score) < env.SCORES_THRESHOLD))
-				break;
-
-			const restaurantsObj = page.scores
-				.map((score, index) => {
-					return {
-						id: (page.urls[index].match(/^.*\/(.+?)(?=\/?$)/) as string[])[1],
-						score: Number(score),
-						url: page.urls[index],
-					};
-				})
-				.filter((restaurant) => restaurant.score >= env.SCORES_THRESHOLD);
-			restaurants.push(...restaurantsObj);
-		}
-		//exit scraping while loop if a joint with score < SCRORES_THRESHOLD is observed
-		if (abortScraping) break;
+	const restaurants: Restaurant = [];
+	let res: ({ scores: string[]; urls: string[] } | null)[] = [];
+	//scrape restaurant urls
+	try {
+		res = await Promise.all(urls.map((url) => scrapeRestaurants(url, c.env)));
+	} catch (e) {
+		throw new Error(`${errMsgPrefix}. ${e}`);
 	}
 
-	//add restaurants to city
+	for (const page of res) {
+		if (!page) continue;
+		for (const [index, score] of page.scores.entries()) {
+			if (Number(score) < c.env.SCORES_THRESHOLD) continue;
+			restaurants.push({
+				id: page.urls[Number(index)],
+				score: Number(score),
+				url: page.urls[Number(index)],
+			});
+		}
+	}
+
+	//update city
 	((prefectures[target.prefecture].areas as Areas)[target.area].cities as City)[
 		target.city
-	] = {
-		...city,
-		updated: Date.now(),
-		restaurants: restaurants,
-	};
+	] =
+		restaurants.length > 0
+			? {
+					...targetCity,
+					updated: Date.now(),
+					restaurants,
+				}
+			: {
+					...targetCity,
+					updated: Date.now(),
+				};
 
 	//overwrite PREFECTURES KV with updated prefectures obj
-	await putKV(env, "PREFECTURES", prefectures);
+	try {
+		await putKV(c.env, "PREFECTURES", prefectures);
+	} catch (e) {
+		throw new Error(`${errMsgPrefix}. ${e}`);
+	}
 
-	return `[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`;
+	if (restaurants.length > 0) {
+		console.log("res", res);
+		console.log("restaurants", restaurants);
+		console.log("url", url);
+	}
+
+	return c.text(
+		`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
+	);
 	// return c.json(
 	// 	`[update-restaurant] Success: ${target.prefecture}/${target.area}/${target.city}`,
 	// );
