@@ -1,23 +1,24 @@
 import type { Context } from "hono";
-import type { Prefecture, Restaurant, Shops } from "../../type";
-import { getKV, putKV } from "../kv/helper.kv";
-import { findOldestUpdatedRestaurant } from "../lib/findOldest";
+import type { Prefecture, Restaurant, Shops } from "../type";
+import { getKV, putKV } from "../utils/kv/helper.kv";
+import { findOldestUpdatedRestaurant } from "../utils/lib/findOldest";
+import { getMoyori } from "../utils/station/moyori";
 // import type { OutputRestaurant } from "../crawler/helper.crawler";
 
-export async function manualUpdateShops(c: Context) {
-	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
-	if (!prefs) throw new Error("key:restaurants do not exist.");
+export async function updateShops(env: CloudflareBindings) {
+	const errMsgPrefix = "updateShops failed.";
+
+	//get PREFECTURES
+	let prefs: Prefecture | null = null;
+	try {
+		prefs = (await getKV(env, "PREFECTURES")) as Prefecture;
+	} catch (e) {
+		throw new Error(`${errMsgPrefix}. key:PREFECTURES do not exist.`);
+	}
 
 	//get restaurant with the smallest updated time value or no updated value
 	const target = findOldestUpdatedRestaurant(prefs);
 	if (!target) throw new Error("invalid targetRestaurants");
-
-	// const restaurantURL = targetRestaurant.restaurants.url;
-	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1060249/";
-	// const restaurantURL = "https://tabelog.com/tokyo/A1304/A130401/13146954/";
-	// const restaurantURL = "https://tabelog.com/tokyo/A1301/A130103/13200392/";
-	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1004335/";
-	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1046364/";
 
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const metaData: Record<string, any> = {};
@@ -27,111 +28,117 @@ export async function manualUpdateShops(c: Context) {
 	const res: string[] = Array(18).fill("");
 	let warning = "";
 	const gmapText: string[] = [];
-	const response = await fetch(target.restaurant.url);
-	if (!response.ok) throw new Error(response.statusText);
 
-	const rewriter = new HTMLRewriter()
-		.on("img.rstinfo-table__map-image", new ElementHandler(gmapText))
-		.on("a.rst-status-badge-red__text", {
-			text({ text }) {
-				warning = text;
-			},
-		})
-		.on(tSelector(2, 1), {
-			text({ text }) {
-				res[0] += text;
-			},
-		})
-		.on(tSelector(2, 2), {
-			text({ text }) {
-				res[1] += text;
-			},
-		})
-		.on(tSelector(2, 3), {
-			text({ text }) {
-				res[2] += text;
-			},
-		})
-		.on(tSelector(2, 4), {
-			text({ text }) {
-				res[3] += text;
-			},
-		})
-		.on(tSelector(2, 5), {
-			text({ text }) {
-				res[4] += text;
-			},
-		})
-		.on(tSelector(2, 6), {
-			text({ text }) {
-				res[5] += text;
-			},
-		})
-		.on(tSelector(2, 7), {
-			text({ text }) {
-				res[6] += text;
-			},
-		})
-		.on(tSelector(2, 8), {
-			text({ text }) {
-				res[7] += text;
-			},
-		})
-		.on(tSelector(2, 9), {
-			text({ text }) {
-				res[8] += text;
-			},
-		})
-		.on(tSelector(2, 10), {
-			text({ text }) {
-				res[9] += text;
-			},
-		})
-		.on(tSelector(2, 11), {
-			text({ text }) {
-				res[10] += text;
-			},
-		})
-		.on(tSelector(4, 1), {
-			text({ text }) {
-				res[11] += text;
-			},
-		})
-		.on(tSelector(4, 2), {
-			text({ text }) {
-				res[12] += text;
-			},
-		})
-		.on(tSelector(4, 3), {
-			text({ text }) {
-				res[13] += text;
-			},
-		})
-		.on(tSelector(4, 4), {
-			text({ text }) {
-				res[14] += text;
-			},
-		})
-		.on(tSelector(4, 5), {
-			text({ text }) {
-				res[15] += text;
-			},
-		})
-		.on(
-			"dl.rdheader-subinfo__item.rdheader-subinfo__item--station > dd > div > div.linktree__childbox > div > ul > li:nth-child(1)",
-			{
+	try {
+		const response = await fetch(target.restaurant.url);
+		if (!response.ok) throw new Error(response.statusText);
+
+		const rewriter = new HTMLRewriter()
+			.on("img.rstinfo-table__map-image", new ElementHandler(gmapText))
+			.on("a.rst-status-badge-red__text", {
 				text({ text }) {
-					res[16] += text;
+					warning = text;
 				},
-			},
-		)
-		.on("span.rdheader-rating__score-val-dtl", {
-			text({ text }) {
-				res[17] += text;
-			},
-		});
+			})
+			.on(tSelector(2, 1), {
+				text({ text }) {
+					res[0] += text;
+				},
+			})
+			.on(tSelector(2, 2), {
+				text({ text }) {
+					res[1] += text;
+				},
+			})
+			.on(tSelector(2, 3), {
+				text({ text }) {
+					res[2] += text;
+				},
+			})
+			.on(tSelector(2, 4), {
+				text({ text }) {
+					res[3] += text;
+				},
+			})
+			.on(tSelector(2, 5), {
+				text({ text }) {
+					res[4] += text;
+				},
+			})
+			.on(tSelector(2, 6), {
+				text({ text }) {
+					res[5] += text;
+				},
+			})
+			.on(tSelector(2, 7), {
+				text({ text }) {
+					res[6] += text;
+				},
+			})
+			.on(tSelector(2, 8), {
+				text({ text }) {
+					res[7] += text;
+				},
+			})
+			.on(tSelector(2, 9), {
+				text({ text }) {
+					res[8] += text;
+				},
+			})
+			.on(tSelector(2, 10), {
+				text({ text }) {
+					res[9] += text;
+				},
+			})
+			.on(tSelector(2, 11), {
+				text({ text }) {
+					res[10] += text;
+				},
+			})
+			.on(tSelector(4, 1), {
+				text({ text }) {
+					res[11] += text;
+				},
+			})
+			.on(tSelector(4, 2), {
+				text({ text }) {
+					res[12] += text;
+				},
+			})
+			.on(tSelector(4, 3), {
+				text({ text }) {
+					res[13] += text;
+				},
+			})
+			.on(tSelector(4, 4), {
+				text({ text }) {
+					res[14] += text;
+				},
+			})
+			.on(tSelector(4, 5), {
+				text({ text }) {
+					res[15] += text;
+				},
+			})
+			.on(
+				"dl.rdheader-subinfo__item.rdheader-subinfo__item--station > dd > div > div.linktree__childbox > div > ul > li:nth-child(1)",
+				{
+					text({ text }) {
+						res[16] += text;
+					},
+				},
+			)
+			.on("span.rdheader-rating__score-val-dtl", {
+				text({ text }) {
+					res[17] += text;
+				},
+			});
 
-	await rewriter.transform(response).arrayBuffer();
+		await rewriter.transform(response).arrayBuffer();
+	} catch (e) {
+		throw new Error(`${errMsgPrefix}. ${e}`);
+	}
+
 	metaData.warning = warning ? warning : null;
 
 	for (const str of res) {
@@ -139,7 +146,11 @@ export async function manualUpdateShops(c: Context) {
 	}
 
 	metaData.coord = getCoordinates(gmapText[0]);
-	console.log(JSON.stringify(metaData, null, 2));
+	metaData.stations = await getMoyori(
+		env,
+		metaData.coord.lng,
+		metaData.coord.lat,
+	);
 
 	//update restaurant update time
 	for (const restaurant of prefs[target.prefecture].areas?.[target.area]
@@ -148,16 +159,17 @@ export async function manualUpdateShops(c: Context) {
 			restaurant.updated = Date.now();
 		}
 	}
-	await putKV(c.env, "PREFECTURES", prefs);
 
-	metaData.id = target.restaurant.id;
+	try {
+		await putKV(env, "PREFECTURES", prefs);
 
-	const curShops = (await getKV(c.env, "SHOPS")) as Shops;
-	curShops[target.restaurant.id] = metaData;
-	await putKV(c.env, "SHOPS", curShops);
-	return c.text(
-		`[get-shopDetail] Success: ${target.prefecture}/${target.area}/${target.city} ${target.restaurant.id}`,
-	);
+		const curShops = (await getKV(env, "SHOPS")) as Shops;
+		const addedShops = { ...curShops, [target.restaurant.id]: metaData };
+		await putKV(env, "SHOPS", addedShops);
+		return `[update-shopDetail] Success: ${target.prefecture}/${target.area}/${target.city} ${target.restaurant.id}`;
+	} catch (e) {
+		throw new Error(`${errMsgPrefix}. ${e}`);
+	}
 }
 function getCoordinates(gmapText: string) {
 	const gt = decodeURIComponent(gmapText).replace(/&amp;/g, "&");

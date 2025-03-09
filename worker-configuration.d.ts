@@ -2,7 +2,6 @@
 // After adding bindings to `wrangler.toml`, regenerate this interface via `npm run cf-typegen`
 interface CloudflareBindings {
 	KV: KVNamespace;
-	DOM_API_URL: string;
-	DOM_API_TOKEN: string;
 	SCORES_THRESHOLD: number;
+	DISTANCE_LIMIT: number;
 }

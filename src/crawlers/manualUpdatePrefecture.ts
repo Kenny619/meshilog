@@ -1,8 +1,8 @@
 import type { Context } from "hono";
-import { getKV, putKV } from "../kv/helper.kv";
-import { scrapeLocation } from "../crawler/scrapeLocation";
-import type { Prefecture, Areas, City } from "../../type";
-import { findOldest } from "../lib/findOldest";
+import { getKV, putKV } from "../utils/kv/helper.kv";
+import { scrapeLocation } from "../utils/crawler/scrapeLocation";
+import type { Prefecture, Areas, City } from "../type";
+import { findOldest } from "../utils/lib/findOldest";
 export async function manualUpdatePrefecture(c: Context) {
 	const errMsgPrefix = "manualUpdatePrefecture failed. ";
 
