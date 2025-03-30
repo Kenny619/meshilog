@@ -1,25 +1,54 @@
 import type { Context } from "hono";
 import type { Prefecture, Restaurant, Shops } from "../type";
 import { getKV, putKV } from "../utils/kv/helper.kv";
-import { findOldestUpdatedRestaurant } from "../utils/lib/findOldest";
+import { getRestaurantsToUpdate } from "../utils/lib/findOldest";
 import { getMoyori } from "../utils/station/moyori";
-// import type { OutputRestaurant } from "../crawler/helper.crawler";
 
 export async function manualUpdateShops(c: Context) {
 	const prefs = (await getKV(c.env, "PREFECTURES")) as Prefecture;
 	if (!prefs) throw new Error("key:restaurants do not exist.");
 
 	//get restaurant with the smallest updated time value or no updated value
-	const target = findOldestUpdatedRestaurant(prefs);
-	if (!target) throw new Error("invalid targetRestaurants");
+	const targets = getRestaurantsToUpdate(prefs, 20);
+	if (!targets) throw new Error("invalid targetRestaurants");
 
-	// const restaurantURL = targetRestaurant.restaurants.url;
-	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1060249/";
-	// const restaurantURL = "https://tabelog.com/tokyo/A1304/A130401/13146954/";
-	// const restaurantURL = "https://tabelog.com/tokyo/A1301/A130103/13200392/";
-	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1004335/";
-	// const restaurantURL = "https://tabelog.com/hokkaido/A0101/A010101/1046364/";
+	console.log(targets);
 
+	const prms = targets.map((target) => crawlRestaurant(target, c));
+	const results = await Promise.all(prms);
+
+	//update SHOPS KV
+	const curSHOPS = (await getKV(c.env, "SHOPS")) as Shops;
+	const updatedSHOPS = curSHOPS;
+	results.forEach((result, index) => {
+		updatedSHOPS[targets[index].restaurant.id] = result;
+	});
+
+	await putKV(c.env, "SHOPS", updatedSHOPS);
+
+	//update restaurant update time
+	for (const target of targets) {
+		for (const restaurant of prefs[target.prefecture].areas?.[target.area]
+			.cities?.[target.city].restaurants || []) {
+			if (restaurant.id === target.restaurant.id) {
+				restaurant.updated = Date.now();
+			}
+		}
+	}
+	await putKV(c.env, "PREFECTURES", prefs);
+	console.log(updatedSHOPS);
+	return c.text(`[get-shopDetail] Success: ${results.length} shops updated`);
+}
+
+async function crawlRestaurant(
+	target: {
+		prefecture: string;
+		area: string;
+		city: string;
+		restaurant: Restaurant[number];
+	},
+	c: Context,
+) {
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const metaData: Record<string, any> = {};
 	metaData.url = target.restaurant.url;
@@ -140,9 +169,9 @@ export async function manualUpdateShops(c: Context) {
 		);
 
 	await rewriter.transform(response).arrayBuffer();
-	metaData.warning = warning ? warning : null;
+	metaData.warn = warning ? warning : null;
 	metaData.score = score ? score : null;
-	metaData.reviews = reviews ? reviews : null;
+	metaData.rev = reviews ? reviews : null;
 
 	for (const str of res) {
 		extractor(str, metaData);
@@ -155,22 +184,7 @@ export async function manualUpdateShops(c: Context) {
 		metaData.coord.lat,
 	);
 
-	//update restaurant update time
-	for (const restaurant of prefs[target.prefecture].areas?.[target.area]
-		.cities?.[target.city].restaurants || []) {
-		if (restaurant.id === target.restaurant.id) {
-			restaurant.updated = Date.now();
-		}
-	}
-	await putKV(c.env, "PREFECTURES", prefs);
-
-	console.log(JSON.stringify(metaData, null, 2));
-	const curShops = (await getKV(c.env, "SHOPS")) as Shops;
-	const addedShops = { ...curShops, [target.restaurant.id]: metaData };
-	await putKV(c.env, "SHOPS", addedShops);
-	return c.text(
-		`[get-shopDetail] Success: ${target.prefecture}/${target.area}/${target.city} ${target.restaurant.id}`,
-	);
+	return metaData;
 }
 function getCoordinates(gmapText: string) {
 	const gt = decodeURIComponent(gmapText).replace(/&amp;/g, "&");
@@ -216,13 +230,13 @@ function extractor(text: string, metaData: Record<string, any>) {
 	if (/予約可否/.test(trimmedText)) {
 		const reserve = trimmedText.replace("予約可否", "").trim();
 		if (/予約可/.test(reserve)) {
-			metaData.reserve = "可";
+			metaData.reserve = "ok";
 		} else if (/予約不可/.test(reserve)) {
-			metaData.reservation = "不可";
+			metaData.reserve = "ng";
 		} else if (/完全予約制/.test(reserve)) {
-			metaData.reservation = "完全予約制";
+			metaData.reserve = "only";
 		} else {
-			metaData.reservation = "不明";
+			metaData.reserve = null;
 		}
 	}
 	if (/住所/.test(trimmedText)) {
@@ -230,9 +244,6 @@ function extractor(text: string, metaData: Record<string, any>) {
 			.replace(/住所|大きな地図を見る|周辺のお店を探す/g, "")
 			.trim();
 	}
-	// if (/交通手段/.test(trimmedText)) {
-	// 	metaData.access = trimmedText.replace("交通手段", "").trim();
-	// }
 	if (/営業時間/.test(trimmedText)) {
 		//２４時間営業
 		//営業時間・定休日は変更となる場合がございますので、ご来店前に店舗にご確認ください。
@@ -258,9 +269,9 @@ function extractor(text: string, metaData: Record<string, any>) {
 				fr: [{ o: "00:00", c: "24:00" }],
 				sa: [{ o: "00:00", c: "24:00" }],
 				su: [{ o: "00:00", c: "24:00" }],
-				hol: [{ o: "00:00", c: "24:00" }],
-				bef: [{ o: "00:00", c: "24:00" }],
-				aft: [{ o: "00:00", c: "24:00" }],
+				ho: [{ o: "00:00", c: "24:00" }],
+				be: [{ o: "00:00", c: "24:00" }],
+				af: [{ o: "00:00", c: "24:00" }],
 			};
 		}
 		// day and hours
@@ -289,7 +300,7 @@ function extractor(text: string, metaData: Record<string, any>) {
 		const paymentText = trimmedText.replace("支払い方法", "").trim();
 		metaData.pay = {
 			card: [],
-			emoney: [],
+			em: [],
 			qr: [],
 		};
 		if (/カード可/.test(paymentText)) {
@@ -299,7 +310,7 @@ function extractor(text: string, metaData: Record<string, any>) {
 
 		if (/電子マネー可/.test(paymentText)) {
 			const emoney = paymentText.match(/電子マネー可 （(.*?)） /);
-			metaData.pay.emoney = emoney?.[1] ? emoney[1].trim().split("、") : [];
+			metaData.pay.em = emoney?.[1] ? emoney[1].trim().split("、") : [];
 		}
 
 		if (/QRコード決済可/.test(paymentText)) {
@@ -312,46 +323,40 @@ function extractor(text: string, metaData: Record<string, any>) {
 		if (seatCounts) {
 			metaData.seats = seatCounts[0];
 		} else {
-			metaData.seats = "不明";
+			metaData.seats = null;
 		}
 	}
 	if (/個室/.test(trimmedText)) {
 		if (/有/.test(trimmedText)) {
-			metaData.room = "有";
+			metaData.room = "ok";
 		} else if (/無/.test(trimmedText)) {
-			metaData.room = "無";
+			metaData.room = "ng";
 		} else {
-			metaData.room = "不明";
+			metaData.room = null;
 		}
 	}
 	if (/貸切/.test(trimmedText)) {
-		metaData.rentOut = trimmedText.replace("貸切", "").trim();
+		metaData.rent = trimmedText.replace("貸切", "").trim();
 	}
 	if (/禁煙/.test(trimmedText)) {
 		if (/全席禁煙/.test(trimmedText)) {
-			metaData.smoking = "禁煙";
+			metaData.smoke = "ng";
 		} else if (/全席喫煙可/.test(trimmedText)) {
-			metaData.smoking = "喫煙";
+			metaData.smoke = "ok";
 		} else if (/分煙/.test(trimmedText)) {
-			metaData.smoking = "分煙";
+			metaData.smoke = "separate";
 		} else {
-			metaData.smoking = "不明";
+			metaData.smoke = null;
 		}
 	}
 	if (/駐車場/.test(trimmedText)) {
 		if (/有/.test(trimmedText)) {
-			metaData.parking = "有";
+			metaData.park = "ok";
 		} else if (/無/.test(trimmedText)) {
-			metaData.parking = "無";
+			metaData.park = "no";
 		} else {
-			metaData.parking = "不明";
+			metaData.park = null;
 		}
-	}
-	// if (/×/.test(trimmedText)) {
-	// 	metaData.station = trimmedText.split("×")[0].trim();
-	// }
-	if (/undefined\d\.\d{2}/.test(trimmedText)) {
-		metaData.score = trimmedText.replace("undefined", "").trim();
 	}
 }
 
@@ -364,9 +369,9 @@ function getBusinessHours(texts: string[]) {
 		fr: [],
 		sa: [],
 		su: [],
-		hol: [],
-		bef: [],
-		aft: [],
+		ho: [],
+		be: [],
+		af: [],
 	};
 	const days = [
 		{ jp: /月/, en: "mo" },
@@ -376,9 +381,9 @@ function getBusinessHours(texts: string[]) {
 		{ jp: /金/, en: "fr" },
 		{ jp: /土/, en: "sa" },
 		{ jp: /(?<![祝前後])日/, en: "su" },
-		{ jp: /祝日/, en: "hol" },
-		{ jp: /祝前日/, en: "bef" },
-		{ jp: /祝後日/, en: "aft" },
+		{ jp: /祝日/, en: "ho" },
+		{ jp: /祝前日/, en: "be" },
+		{ jp: /祝後日/, en: "af" },
 	];
 	for (const text of texts) {
 		//days and hours
@@ -417,14 +422,14 @@ function getBusinessHours(texts: string[]) {
 
 function getBudget(text: string) {
 	const budget: {
-		dinner: { b: string | null; t: string | null };
-		lunch: { b: string | null; t: string | null };
+		d: { b: string | null; t: string | null };
+		l: { b: string | null; t: string | null };
 	} = {
-		dinner: {
+		d: {
 			b: null,
 			t: null,
 		},
-		lunch: {
+		l: {
 			b: null,
 			t: null,
 		},
@@ -433,20 +438,20 @@ function getBudget(text: string) {
 	if (budgetText) {
 		const [b, t] = budgetText[0].split("～");
 		if (b.length > 0) {
-			budget.dinner.b = b.replace("￥", "").replace(",", "");
+			budget.d.b = b.replace("￥", "").replace(",", "");
 		} else {
-			budget.dinner.b = "0";
+			budget.d.b = "0";
 		}
-		budget.dinner.t = t.replace("￥", "").replace(",", "");
+		budget.d.t = t.replace("￥", "").replace(",", "");
 
 		if (budgetText.length > 1) {
 			const [b, t] = budgetText[1].split("～");
 			if (b.length > 0) {
-				budget.lunch.b = b.replace("￥", "").replace(",", "");
+				budget.l.b = b.replace("￥", "").replace(",", "");
 			} else {
-				budget.lunch.b = "0";
+				budget.l.b = "0";
 			}
-			budget.lunch.t = t.replace("￥", "").replace(",", "");
+			budget.l.t = t.replace("￥", "").replace(",", "");
 		}
 	}
 	return budget;
