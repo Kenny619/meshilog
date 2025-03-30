@@ -65,3 +65,47 @@ export function findOldestUpdatedRestaurant(location: Prefecture) {
 
 	return result;
 }
+
+export function getRestaurantsToUpdate(location: Prefecture, cnt: number) {
+	//find Restaurant object with smallest updated value and return its parent prefID, areaID, cityID
+
+	const restaurants: {
+		updated: number;
+		prefecture: string;
+		area: string;
+		city: string;
+		restaurant: Restaurant[number];
+	}[] = [];
+	let nevers = 0;
+
+	for (const [prefID, prefData] of Object.entries(location)) {
+		for (const [areaID, areaData] of Object.entries(prefData.areas || {})) {
+			for (const [cityID, cityData] of Object.entries(areaData.cities || {})) {
+				for (const restaurant of cityData.restaurants || []) {
+					if (restaurant.updated === undefined) {
+						restaurants.push({
+							updated: Number(restaurant.updated),
+							prefecture: prefID,
+							area: areaID,
+							city: cityID,
+							restaurant: restaurant,
+						});
+						nevers++;
+					} else {
+						restaurants.push({
+							updated: Number(restaurant.updated),
+							prefecture: prefID,
+							area: areaID,
+							city: cityID,
+							restaurant: restaurant,
+						});
+					}
+				}
+				if (nevers === cnt) return restaurants;
+			}
+		}
+	}
+
+	restaurants.sort((a, b) => a.updated - b.updated);
+	return restaurants.slice(0, cnt);
+}
