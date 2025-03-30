@@ -3,7 +3,7 @@ import { getKV, putKV } from "../utils/kv/helper.kv";
 import { getRestaurantsToUpdate } from "../utils/lib/findOldest";
 import { getMoyori } from "../utils/station/moyori";
 
-export async function manualUpdateShops(env: CloudflareBindings) {
+export async function updateShops(env: CloudflareBindings) {
 	const prefs = (await getKV(env, "PREFECTURES")) as Prefecture;
 	if (!prefs) throw new Error("key:restaurants do not exist.");
 

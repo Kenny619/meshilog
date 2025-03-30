@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { updateShops } from "./crawlers/updateShopDetails";
+import { updateShops } from "./crawlers/updateShops";
 import { updateRestaurants } from "./crawlers/updateRestaurant";
 import { updateSinglePrefecture } from "./crawlers/updateSinglePrefecture";
 import { manualUpdatePrefecture } from "./crawlers/manualUpdatePrefecture";
