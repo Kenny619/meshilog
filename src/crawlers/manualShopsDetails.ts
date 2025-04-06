@@ -52,6 +52,9 @@ async function crawlRestaurant(
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const metaData: Record<string, any> = {};
 	metaData.url = target.restaurant.url;
+	metaData.pref = target.prefecture;
+	metaData.area = target.area;
+	metaData.city = target.city;
 
 	// const res: string[] = Array(18).fill("");
 	const res: string[] = Array(19).fill("");
