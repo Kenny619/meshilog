@@ -6,7 +6,9 @@ import { manualUpdatePrefecture } from "./crawlers/manualUpdatePrefecture";
 import { manualUpdateRestaurant } from "./crawlers/manualUpdateRestaurant";
 import { debugLocations } from "./utils/debug/debugLocations";
 import { manualUpdateShops } from "./crawlers/manualShopsDetails";
-
+import { prefecturesCoverage } from "./stats/prefs";
+import { scoreReviews } from "./stats/scores";
+import { lastUpdated } from "./stats/lastUpdated";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 //// SHOPS APIs
@@ -20,6 +22,11 @@ app.get(
 	"/man/prefecture/:prefID",
 	async (c) => await manualUpdatePrefecture(c),
 );
+
+//// STATS
+app.get("/stats/prefectures", async (c) => await prefecturesCoverage(c));
+app.get("/stats/scores", async (c) => await scoreReviews(c));
+app.get("/stats/lastUpdated", async (c) => await lastUpdated(c));
 app.get(
 	"/debug/:mode",
 	async (c) =>
