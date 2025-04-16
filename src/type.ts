@@ -44,3 +44,37 @@ export type Stations = {
 	lon: string;
 	lat: string;
 }[];
+
+export type ShopParams = {
+	search: string | undefined;
+	coord:
+		| {
+				lat: number;
+				lon: number;
+		  }
+		| undefined;
+	station:
+		| {
+				name: string;
+				distance: string;
+		  }
+		| undefined;
+
+	filter:
+		| {
+				genre: string[];
+				award: boolean;
+				reservation: boolean;
+				smoking: boolean;
+				open: boolean;
+				budget: {
+					min: number;
+					max: number;
+				};
+				payment: string[];
+				parking: boolean;
+				private: boolean;
+				rentout: boolean;
+		  }
+		| undefined;
+};

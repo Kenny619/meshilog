@@ -9,6 +9,7 @@ import { manualUpdateShops } from "./crawlers/manualShopsDetails";
 import { prefecturesCoverage } from "./stats/prefs";
 import { scoreReviews } from "./stats/scores";
 import { genre } from "./stats/genre";
+import { historyShops } from "./stats/historyShops";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 //// SHOPS APIs
@@ -27,6 +28,7 @@ app.get(
 app.get("/stats/prefectures", async (c) => await prefecturesCoverage(c));
 app.get("/stats/genre", async (c) => await genre(c));
 app.get("/stats/scores", async (c) => await scoreReviews(c));
+app.get("/stats/historyShops", async (c) => await historyShops(c));
 
 app.get(
 	"/debug/:mode",
